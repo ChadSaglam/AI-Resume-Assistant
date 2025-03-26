@@ -2,13 +2,12 @@
  * CV analysis result
  */
 export interface CVAnalysisResult {
-    matchScore: number;
-    strengths: string[];
-    gaps: string[];
-    suggestions: string;
-    readyToGenerate: boolean;
-    keywordMatchDetails?: KeywordMatchDetail[];
-  }
+  matchScore: number;
+  strengths: string[];
+  improvementAreas: string[];  // This should be used instead of 'weaknesses'
+  keywordsMissing: string[];
+  suggestedImprovements: string[];
+}
   
   /**
    * Keyword match detail

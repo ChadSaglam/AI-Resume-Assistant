@@ -1,15 +1,13 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Clock, User } from 'lucide-react';
 import ModernStepper from '@/components/ui/ModernStepper';
 import CVUploader from '@/components/features/CVUploader';
-import PdfViewer from '@/components/features/PdfViewer';
+import CVPreview from '@/components/features/CVPreview';
 import JobDetailsForm from '@/components/features/JobDetailsForm';
 import AnalysisLoading from '@/components/features/AnalysisLoading';
 import AnalysisResults from '@/components/features/AnalysisResults';
 import LetterGenerator from '@/components/features/LetterGenerator';
-import Modal from '@/components/ui/Modal';
 import { Step } from '@/types/ui-types';
 import { JobDetailsData } from '@/types/job-types';
 import { CVAnalysisResult } from '@/types/analysis-types';
@@ -18,8 +16,8 @@ import { CVAnalysisResult } from '@/types/analysis-types';
 const steps: Step[] = [
   {
     id: 'upload',
-    label: 'Upload CV',
-    description: 'Upload your CV in PDF format',
+    label: 'Create CV',
+    description: 'Create or edit your CV',
     icon: 'file'
   },
   {
@@ -44,17 +42,15 @@ const steps: Step[] = [
 
 export default function Dashboard() {
   const [currentStep, setCurrentStep] = useState('upload');
-  const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvText, setCvText] = useState<string>('');
   const [jobDetails, setJobDetails] = useState<JobDetailsData | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<CVAnalysisResult | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentDateTime, setCurrentDateTime] = useState('2025-03-06 12:54:55');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   
-  // Function to handle file upload
-  const handleFileUploaded = (file: File, text: string) => {
-    setCvFile(file);
+  // Function to handle CV text 
+  const handleCVUploaded = (text: string) => {
     setCvText(text);
   };
   
@@ -72,30 +68,30 @@ export default function Dashboard() {
     
     try {
       // In a real implementation, this would call your API
-      const response = await fetch('/api/analyze-cv', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          cvText,
-          jobDetails: jobData
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to analyze CV');
-      }
-      
-      const result = await response.json();
-      
-      // Simulate a slight delay to show the loading process
+      // For demo purposes, we'll create a mock result after a delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      setAnalysisResult(result);
+      setAnalysisResult({
+        matchScore: 75,
+        strengths: [
+          "Strong technical skills in the required technologies",
+          "Relevant education background in Computer Science",
+          "Previous experience in similar roles"
+        ],
+        improvementAreas: [
+          "Missing some specific keywords from the job description",
+          "Experience level slightly below the requirement",
+          "No mention of specific industry experience"
+        ],
+        keywordsMissing: ["Docker", "Kubernetes", "Agile methodology"],
+        suggestedImprovements: [
+          "Add more details about your experience with cloud technologies",
+          "Highlight any Agile development experience",
+          "Mention specific projects that demonstrate your skills in the required areas"
+        ]
+      });
     } catch (error) {
       console.error('Analysis error:', error);
-      // Handle error - you could set an error state here
     } finally {
       setIsAnalyzing(false);
     }
@@ -113,10 +109,9 @@ export default function Dashboard() {
   };
   
   // Function to confirm proceeding to letter generation despite non-perfect score
-  // Fixed to directly navigate to letter step without requiring a second click
   const handleConfirmProceed = () => {
     setIsModalOpen(false);
-    // Immediately navigate to the letter step - fixed bug
+    // Immediately navigate to the letter step
     setCurrentStep('letter');
   };
   
@@ -132,6 +127,10 @@ export default function Dashboard() {
     setIsModalOpen(false); // Close modal before navigating
     setCurrentStep('upload');
   };
+  
+  const handleProfileImageChange = (image: string | null) => {
+    setProfileImage(image);
+  };
 
   return (
     <div className="container mx-auto p-4 md:p-6 max-w-6xl">
@@ -145,24 +144,13 @@ export default function Dashboard() {
           >
             Create Application
           </motion.h1>
-          
-          <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300 mt-2 sm:mt-0">
-            <div className="flex items-center">
-              <Clock className="w-4 h-4 mr-1.5" />
-              <span>{currentDateTime}</span>
-            </div>
-            <div className="flex items-center">
-              <User className="w-4 h-4 mr-1.5" />
-              <span>ChadSaglam</span>
-            </div>
-          </div>
         </div>
         
         <ModernStepper steps={steps} currentStep={currentStep} />
       </div>
 
       <AnimatePresence mode="wait">
-        {/* Step 1: CV Upload */}
+        {/* Step 1: CV Creation/Editing */}
         {currentStep === 'upload' && (
           <motion.div
             key="upload-step"
@@ -171,10 +159,18 @@ export default function Dashboard() {
             exit={{ opacity: 0, y: -20 }}
             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
           >
-            <div>
-              <CVUploader onFileUploaded={handleFileUploaded} />
+            <CVUploader 
+              onFileUploaded={handleCVUploaded} 
+              onProfileImageChange={handleProfileImageChange}
+            />
+            
+            <div className="flex flex-col">
+              <CVPreview 
+                text={cvText}
+                profileImage={profileImage}
+              />
               
-              {cvFile && cvText && (
+              {cvText && (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -189,14 +185,10 @@ export default function Dashboard() {
                 </motion.div>
               )}
             </div>
-            
-            <div>
-              <PdfViewer file={cvFile} />
-            </div>
           </motion.div>
         )}
-        
-        {/* Step 2: Job Details */}
+
+        {/* Step 2: Job Listing */}
         {currentStep === 'job' && (
           <motion.div
             key="job-step"
@@ -206,12 +198,12 @@ export default function Dashboard() {
           >
             <JobDetailsForm 
               onSubmit={handleJobDetailsSubmit}
-              onBack={goToPreviousStep}
+              onBack={() => setCurrentStep('upload')}
               initialData={jobDetails || undefined}
             />
           </motion.div>
         )}
-        
+
         {/* Step 3: Analysis */}
         {currentStep === 'analysis' && (
           <motion.div
@@ -219,13 +211,14 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="max-w-4xl mx-auto"
           >
             {isAnalyzing ? (
               <AnalysisLoading />
             ) : analysisResult ? (
               <AnalysisResults 
                 result={analysisResult}
-                onBack={goToPreviousStep}
+                onBack={() => setCurrentStep('job')}
                 onNext={handleContinueToLetter}
                 onRevise={handleReviseCV}
               />
@@ -238,70 +231,26 @@ export default function Dashboard() {
             )}
           </motion.div>
         )}
-        
-        {/* Step 4: Letter Generation */}
+
+        {/* Step 4: Letter Generator */}
         {currentStep === 'letter' && jobDetails && analysisResult && (
           <motion.div
             key="letter-step"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="max-w-4xl mx-auto"
           >
             <LetterGenerator
               cvText={cvText}
               jobDetails={jobDetails}
               analysisResult={analysisResult}
-              onBack={goToPreviousStep}
+              onBack={() => setCurrentStep('analysis')}
             />
           </motion.div>
         )}
       </AnimatePresence>
       
-      {/* Confirmation Modal */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title="ATS Score Warning"
-      >
-        <div>
-          <div className="mb-4 flex items-start">
-            <div className="text-yellow-500 mr-3 flex-shrink-0">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-medium text-gray-900 dark:text-white">
-                Your CV has a score of {analysisResult?.matchScore}/100
-              </p>
-              <p className="text-gray-600 dark:text-gray-300 mt-1">
-                This may significantly reduce your chances of passing the ATS filters and getting an interview.
-              </p>
-            </div>
-          </div>
-          
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg mb-6">
-            <p className="text-sm text-yellow-800 dark:text-yellow-300">
-              We recommend addressing the gaps identified in your CV before proceeding. A higher score will improve your chances significantly.
-            </p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-            <button
-              onClick={handleReviseCV}
-              className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              Revise CV First
-            </button>
-            <button
-              onClick={handleConfirmProceed}
-              className="w-full sm:w-auto px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              Continue Anyway
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
